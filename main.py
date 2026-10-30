@@ -6,7 +6,8 @@ from src.data_exploration import (
     plot_lpcc_distributions, plot_class_distribution, plot_recording_lengths_by_speaker,
     plot_lpcc_correlations
 )
-from src.preprocessing import preprocess_data, create_folds
+from src.preprocessing import create_folds, extract_features
+from src.train import train_baseline
 
 data_dir = Path(__file__).resolve().parent / "data"
 
@@ -37,30 +38,14 @@ train_labels, test_labels = create_labels()
 
 
 
+# ---------- Feature Extraction ----------
+train_features = extract_features(train_inputs)
+test_features = extract_features(test_inputs)
 
-# ---------- Data Preprocessing without Cross-Validation ----------
-# X_train, X_val, y_train, y_val = preprocess_data(
-#     train_inputs,
-#     train_labels
-# )
-
-
-
-# ---------- Data Preprocessing with Cross-Validation ----------
-for train_idx, val_idx in create_folds(train_inputs, train_labels):
-
-    X_train = [train_inputs[i] for i in train_idx]
-    X_val = [train_inputs[i] for i in val_idx]
-
-    y_train = train_labels[train_idx]
-    y_val = train_labels[val_idx]
-
-    # print(len(X_train), len(X_val))
+print("Training features:", train_features.shape)
+print("Testing features:", test_features.shape)
 
 
-# ----------- Verify the shapes of the training and validation sets -----------
-print("Training recordings:", len(X_train))
-print("Validation recordings:", len(X_val))
 
-print("Training labels:", np.bincount(y_train))
-print("Validation labels:", np.bincount(y_val))
+# ---------- Baseline Model Training (Logistic Regression) ----------
+train_baseline(train_features, train_labels)
