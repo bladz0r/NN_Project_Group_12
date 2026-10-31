@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src.hpo import optimize_mlp
 from src.data_exploration import (
     explore_data,
     explore_lpcc,
@@ -14,12 +15,12 @@ from src.data_exploration import (
 )
 from src.data_import import create_labels, load_sequences
 from src.preprocessing import create_folds, extract_features
-from src.train import (
-    evaluate_test_mlp,
+from src.evaluate import (cross_validate_baseline, 
+    cross_validate_mlp , evaluate_test_mlp,
     plot_mlp_confusion_matrix,
-    train_baseline,
-    train_mlp,
+    plot_mlp_loss_curves,evaluate_test_mlp_hpo
 )
+from src.train import partial_fit_mlp
 
 data_dir = Path(__file__).resolve().parent / "data"
 
@@ -56,15 +57,54 @@ print("Training features:", train_features.shape)
 print("Testing features:", test_features.shape)
 
 
-# ---------- Baseline Model Training (Logistic Regression) ----------
-train_baseline(train_features, train_labels)
+
+# ---------- Cross-validate Baseline (Logistic Regression) ----------
+cross_validate_baseline(train_features, train_labels)
 
 
-# ---------- MLP Model Training ----------
-train_mlp(train_features, train_labels)
+# ---------- Cross-validate MLP ----------
+results = cross_validate_mlp(train_features, train_labels)
+
+# ---------- Plot train vs validation loss curves ----------
+# plot_mlp_loss_curves(results["histories"])
 
 # ---------- Final Test Evaluation ----------
 evaluate_test_mlp(train_features, train_labels, test_features, test_labels)
 
 # ---------- Confusion Matrix Generation ----------
-plot_mlp_confusion_matrix(train_features, train_labels, test_features, test_labels)
+# plot_mlp_confusion_matrix(train_features, train_labels, test_features, test_labels)
+
+
+
+# ------------------ HPO ---------------------------
+print("\n--- Hyperparameter Optimization (HPO) ---")
+
+# ------------------ Get best hyperparameters ------------------
+# best_params, best_results = optimize_mlp(train_features, train_labels)
+
+
+# Use this to evaluate the best hyperparameters without having run the HPO again
+best_params = {
+    "hidden_layer_sizes": (32,),
+    "alpha": 0.001,
+    "activation": "tanh",
+    "batch_size": 32,
+}
+
+# ------------------ Train final model with best hyperparameters ------------------
+model, scaler = partial_fit_mlp(
+    train_features,
+    train_labels,
+    epochs=300,
+    **best_params,
+)
+
+
+# ------------------ Cross-validate final model ------------------
+results = cross_validate_mlp(train_features, train_labels, **best_params)
+
+# ------------------ Plot train vs validation loss curves for final model ------------------
+plot_mlp_loss_curves(results["histories"])
+
+# ------------------ Final Test Evaluation for final model ------------------
+evaluate_test_mlp_hpo(test_features, test_labels, model, scaler)

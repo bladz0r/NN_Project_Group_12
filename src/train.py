@@ -1,139 +1,90 @@
-import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    ConfusionMatrixDisplay,
-    accuracy_score,
-    confusion_matrix,
-    f1_score,
-)
-from sklearn.neural_network import MLPClassifier
+
+from sklearn.metrics import log_loss
 from sklearn.preprocessing import StandardScaler
 
-from src.preprocessing import create_folds
+from src.mlp import create_mlp
 
 
-def _get_trained_mlp(X_train, y_train, alpha=0.5):
+
+def fit_mlp(X_train, y_train, **mlp_params):
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
 
-    model = MLPClassifier(
-        hidden_layer_sizes=(32,),
-        activation="tanh",
-        alpha=alpha,
-        solver="adam",
-        max_iter=1000,
-        random_state=42,  # seed 42 like always :)
-    )
+    model = create_mlp()
+    model.set_params(**mlp_params)
+
     model.fit(X_train_scaled, y_train)
     return model, scaler
 
 
-def train_baseline(features, labels):
-    accuracies = []
-    f1_scores = []
 
-    for fold, (train_idx, val_idx) in enumerate(
-        create_folds(features, labels), start=1
-    ):
-        X_train = features[train_idx]
-        X_val = features[val_idx]
-
-        y_train = labels[train_idx]
-        y_val = labels[val_idx]
-
-        # Standardize features
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_val = scaler.transform(X_val)
-
-        # Train baseline classifier
-        model = LogisticRegression(max_iter=2000)
-        model.fit(X_train, y_train)
-
-        # Evaluate on validation fold
-        predictions = model.predict(X_val)
-
-        accuracy = accuracy_score(y_val, predictions)
-        f1 = f1_score(y_val, predictions, average="macro")
-
-        accuracies.append(accuracy)
-        f1_scores.append(f1)
-
-        print(f"Fold {fold}: Accuracy = {accuracy:.4f}, F1 = {f1:.4f}")
-
-    print(f"\nMean Accuracy: {np.mean(accuracies):.4f}")
-    print(f"Std Accuracy:  {np.std(accuracies):.4f}")
-    print(f"Mean Macro F1: {np.mean(f1_scores):.4f}")
-
-
-def train_mlp(features, labels, alpha=0.5):
-    accuracies = []
-    f1_scores = []
-
-    for fold, (train_idx, val_idx) in enumerate(
-        create_folds(features, labels), start=1
-    ):
-        X_train = features[train_idx]
-        X_val = features[val_idx]
-
-        y_train = labels[train_idx]
-        y_val = labels[val_idx]
-
-        model, scaler = _get_trained_mlp(X_train, y_train, alpha=alpha)
-        # Standardize features
-        X_val_scaled = scaler.transform(X_val)
-
-        # Evaluate on validation fold
-        predictions = model.predict(X_val_scaled)
-
-        # Calculate scores and save to variables
-        accuracy = accuracy_score(y_val, predictions)
-        f1 = f1_score(y_val, predictions, average="macro")
-
-        accuracies.append(accuracy)
-        f1_scores.append(f1)
-
-        print(f"MLP Fold {fold}: Accuracy = {accuracy:.4f}, F1 = {f1:.4f}")
-
-    print(f"\nMLP Mean Accuracy: {np.mean(accuracies):.4f}")
-    print(f"MLP Std Accuracy:  {np.std(accuracies):.4f}")
-    print(f"MLP Mean Macro F1: {np.mean(f1_scores):.4f}")
-
-
-def evaluate_test_mlp(
-    train_features, train_labels, test_features, test_labels, alpha=0.5
+def train_mlp_with_history(
+    X_train,
+    y_train,
+    X_val,
+    y_val,
+    epochs=300,
+    **mlp_params,
 ):
-    model, scaler = _get_trained_mlp(train_features, train_labels, alpha=alpha)
-    # we scale the features using the training set
-    X_test_scaled = scaler.transform(test_features)
-    predictions = model.predict(X_test_scaled)
+    # Standardize features using training data only
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_val_scaled = scaler.transform(X_val)
 
-    # here we calculate the final metrics
-    accuracy = accuracy_score(test_labels, predictions)
-    f1 = f1_score(test_labels, predictions, average="macro")
-    misclassification_rate = (1 - accuracy) * 100
+    # Define MLP architecture
+    model = create_mlp()
+    model.set_params(**mlp_params)
 
-    print("\n--- The final test set evaluation (MLP) ---")
-    print(f"Test Accuracy: {accuracy:.4f}")
-    print(f"Test Macro F1: {f1:.4f}")
-    print(f"Misclassification Rate: {misclassification_rate:.2f}%")
+    # Store losses for each epoch
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+    }
+
+    classes = np.unique(y_train)
+
+    # Train epoch by epoch
+    for epoch in range(epochs):
+
+        # First epoch requires all training classes
+        if epoch == 0:
+            model.partial_fit(X_train_scaled, y_train, classes=classes)
+        else:
+            model.partial_fit(X_train_scaled, y_train)
+
+        # Predict class probabilities
+        train_probs = model.predict_proba(X_train_scaled)
+        val_probs = model.predict_proba(X_val_scaled)
+
+        # Calculate cross-entropy loss
+        train_loss = log_loss(
+            y_train, train_probs, labels=model.classes_
+        )
+        val_loss = log_loss(
+            y_val, val_probs, labels=model.classes_
+        )
+
+        # Store losses
+        history["train_loss"].append(train_loss)
+        history["val_loss"].append(val_loss)
+
+    return model, scaler, history
 
 
-def plot_mlp_confusion_matrix(
-    train_features, train_labels, test_features, test_labels, alpha=0.5
-):
-    model, scaler = _get_trained_mlp(train_features, train_labels, alpha=alpha)
-    X_test_scaled = scaler.transform(test_features)
+def partial_fit_mlp(X_train, y_train, epochs=300, **mlp_params):
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
 
-    predictions = model.predict(X_test_scaled)
-    cm = confusion_matrix(test_labels, predictions)
+    model = create_mlp()
+    model.set_params(**mlp_params)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-    disp.plot(cmap=plt.cm.Blues, ax=ax, values_format="d")
-    plt.title("MLP Classifier - Test Set Confusion Matrix")
-    plt.xlabel("Predicted Speaker Class")
-    plt.ylabel("True Speaker Class")
-    plt.tight_layout()
-    plt.show()
+    classes = np.unique(y_train)
+
+    for epoch in range(epochs):
+        if epoch == 0:
+            model.partial_fit(X_train_scaled, y_train, classes=classes)
+        else:
+            model.partial_fit(X_train_scaled, y_train)
+
+    return model, scaler
