@@ -20,6 +20,11 @@ def extract_features(inputs):
         means = np.mean(recording, axis=0)
         stds = np.std(recording, axis=0)
 
-        features.append(np.concatenate([means, stds]))
+        deltas = np.diff(recording, axis=0)
+        mean_abs_deltas = np.mean(np.abs(deltas), axis=0)
+
+        features.append(
+            np.concatenate([means, stds, mean_abs_deltas])
+        )
 
     return np.array(features)
