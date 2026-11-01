@@ -28,3 +28,23 @@ def extract_features(inputs):
         )
 
     return np.array(features)
+
+
+def extract_segmented_features(inputs, n_segments=3):
+    features = []
+
+    for recording in inputs:
+        segments = np.array_split(recording, n_segments, axis=0)
+        recording_features = []
+
+        for segment in segments:
+            means = np.mean(segment, axis=0)
+            stds = np.std(segment, axis=0)
+
+            recording_features.extend(means)
+            recording_features.extend(stds)
+
+        features.append(recording_features)
+
+    return np.array(features)
+

@@ -9,7 +9,7 @@ def optimize_mlp(features, labels):
     activations = ["tanh", "relu", "logistic"]
     batch_sizes = [16, 32, 64]
 
-    best_score = -float("inf")
+    best_score = float("inf")
     best_params = None
     best_results = None
     run_count = 0
@@ -38,14 +38,14 @@ def optimize_mlp(features, labels):
             **params,
         )
 
-        score = results["mean_f1"]
+        score = results["mean_val_loss"]
 
-        if score > best_score:
+        if score < best_score:
             best_score = score
             best_params = params
             best_results = results
 
     print("Best hyperparameters:", best_params)
-    print(f"Best mean macro F1: {best_score:.4f}")
+    print(f"Lowest mean validation loss: {best_score:.4f}")
 
     return best_params, best_results

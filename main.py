@@ -14,7 +14,7 @@ from src.data_exploration import (
     plot_recording_lpcc,
 )
 from src.data_import import create_labels, load_sequences
-from src.preprocessing import create_folds, extract_features
+from src.preprocessing import create_folds, extract_features, extract_segmented_features
 from src.evaluate import (cross_validate_baseline, 
     cross_validate_mlp , evaluate_test_mlp,
     plot_mlp_confusion_matrix,

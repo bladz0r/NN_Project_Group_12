@@ -5,7 +5,8 @@ from sklearn.preprocessing import StandardScaler
 def create_mlp():
     return MLPClassifier(
         hidden_layer_sizes=(64,),
-        activation="logistic",
+        # activation="tanh",
+        activation="tanh",
         alpha=0.01,
         solver="adam",
         learning_rate_init=0.001,
