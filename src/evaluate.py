@@ -166,6 +166,32 @@ def evaluate_test_mlp_hpo(
     print(classification_report(test_labels, predictions, digits=4))
 
 
+def evaluate_test_baseline(
+    train_features, train_labels, test_features, test_labels
+):
+    # Fit scaler on all training data
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(train_features)
+    X_test_scaled = scaler.transform(test_features)
+
+    # Train baseline on all training data
+    model = LogisticRegression(max_iter=2000)
+    model.fit(X_train_scaled, train_labels)
+
+    # Evaluate on test data
+    predictions = model.predict(X_test_scaled)
+
+    accuracy = accuracy_score(test_labels, predictions)
+    f1 = f1_score(test_labels, predictions, average="macro")
+    misclassification_rate = (1 - accuracy) * 100
+
+    print("\n--- Final Test Set Evaluation (Logistic Regression) ---")
+    print(f"Test Accuracy: {accuracy:.4f}")
+    print(f"Test Macro F1: {f1:.4f}")
+    print(f"Misclassification Rate: {misclassification_rate:.2f}%")
+    print("\n")
+    print("--------------------------------------------------------------")
+
 
 def plot_mlp_confusion_matrix(
     train_features, train_labels, test_features, test_labels):
@@ -243,3 +269,5 @@ def print_cross_validation_metrics(results):
         print(f"Std Final Validation Loss:  {results['std_val_loss']:.4f}")
     print("\n")
     print("--------------------------------------------------------------")
+
+

@@ -18,7 +18,8 @@ from src.preprocessing import create_folds, extract_features
 from src.evaluate import (cross_validate_baseline, 
     cross_validate_mlp , evaluate_test_mlp,
     plot_mlp_confusion_matrix,
-    plot_mlp_loss_curves,evaluate_test_mlp_hpo, print_cross_validation_metrics
+    plot_mlp_loss_curves,evaluate_test_mlp_hpo, print_cross_validation_metrics,
+    evaluate_test_baseline
 )
 from src.train import partial_fit_mlp
 
@@ -61,6 +62,9 @@ print("Testing features:", test_features.shape)
 # ---------- Cross-validate Baseline (Logistic Regression) ----------
 cross_validate_baseline(train_features, train_labels)
 
+# ---------- Final Test Evaluation for Baseline ----------
+evaluate_test_baseline(train_features, train_labels, test_features, test_labels)
+
 
 # ---------- Cross-validate MLP ----------
 results = cross_validate_mlp(train_features, train_labels)
@@ -68,7 +72,7 @@ results = cross_validate_mlp(train_features, train_labels)
 # ---------- Plot train vs validation loss curves ----------
 plot_mlp_loss_curves(results["histories"])
 
-# ---------- Final Test Evaluation ----------
+# ---------- Final Test Evaluation for MLP ----------
 evaluate_test_mlp(train_features, train_labels, test_features, test_labels)
 
 # ---------- Confusion Matrix Generation ----------
